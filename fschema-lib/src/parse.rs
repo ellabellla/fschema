@@ -12,12 +12,8 @@ impl Serialize for FSchema {
         let mut map = serializer.serialize_map(None)?;
         map.serialize_entry("root", &self.root)?;
         
-        if let Some(prebuild) = &self.prebuild {
-            map.serialize_entry("prebuild",  prebuild)?;
-        }
-        if let Some(postbuild) = &self.postbuild {
-            map.serialize_entry("postbuild",  postbuild)?;
-        }
+        map.serialize_entry("prebuild",  &self.prebuild)?;
+        map.serialize_entry("postbuild",  &self.postbuild)?;
 
         map.end()
     }
@@ -49,8 +45,8 @@ impl<'de> Visitor<'de> for FSchemaVisitor {
         while let Some(key) = map.next_key::<String>()? {
             match key.as_str() {
                 "root" => schema.root = map.next_value::<HashMap<String, Node>>()?,
-                "prebuild" => schema.prebuild = Some(map.next_value::<String>()?),
-                "postbuild" => schema.postbuild = Some(map.next_value::<String>()?),
+                "prebuild" => schema.prebuild = map.next_value::<Vec<String>>()?,
+                "postbuild" => schema.postbuild = map.next_value::<Vec<String>>()?,
                 _ => return Err(Error::unknown_field(&key, &["root", "prebuild", "postbuild"]))
             }
         }
@@ -282,7 +278,7 @@ mod tests {
 
         root.insert("dir".to_string(), Node::Directory(dir));
 
-        let schema = FSchema{root, postbuild: None, prebuild: None};
+        let schema = FSchema{root, postbuild: vec![], prebuild: vec![]};
         let json = serde_json::to_string_pretty(&schema).unwrap();
         println!("{}", json);   
         println!("{:?}", serde_json::from_str::<FSchema>(&json).unwrap())

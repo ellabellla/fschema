@@ -32,8 +32,8 @@ impl Display for Error {
 #[derive(Debug, Default)]
 pub struct FSchema {
     root: HashMap<String, Node>,
-    prebuild: Option<String>,
-    postbuild: Option<String>,
+    prebuild: Vec<String>,
+    postbuild: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -64,8 +64,8 @@ impl FSchema {
 
     pub fn create(&self, root: PathBuf) -> Result<(), Error> {
 
-        if let Some(prebuild) = &self.prebuild {
-            run(prebuild)?;
+        for command in &self.prebuild {
+            run(command)?;
         }
 
         let mut stack = self
@@ -137,8 +137,8 @@ impl FSchema {
             }
         }
 
-        if let Some(postbuild) = &self.postbuild {
-            run(postbuild)?;
+        for command in &self.postbuild {
+            run(command)?;
         }
         Ok(())
     }
