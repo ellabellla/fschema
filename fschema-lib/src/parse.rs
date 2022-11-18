@@ -2,7 +2,7 @@ use std::{collections::HashMap};
 
 use serde::{ser::{SerializeSeq, SerializeMap}, Deserialize, Serialize, de::{Visitor, Error}, Deserializer};
 
-use crate::{FSchema, FileOptions, FileType};
+use crate::{FSchema, FileOptions, FileType, Node};
 
 impl Serialize for FSchema {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -103,12 +103,6 @@ impl<'de> Visitor<'de> for FileOptionsVisitor {
         }
         Ok(options)
     }
-}
-
-#[derive(Debug)]
-pub enum Node {
-    File{data: String, options: FileOptions},
-    Directory(HashMap<String, Node>),
 }
 
 impl Serialize for Node {
