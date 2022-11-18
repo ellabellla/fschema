@@ -16,15 +16,15 @@ pub mod parse;
 
 #[derive(Debug)]
 pub enum Error {
-    IO(io::Error),
-    Command(i32),
+    IO(io::Error, String),
+    Command(i32, String),
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::IO(e) => f.write_fmt(format_args!("An IO error occurred: {}", e)),
-            Error::Command(exit) => f.write_fmt(format_args!("Command exited with code {}", exit)),
+            Error::IO(e, data) => f.write_fmt(format_args!("An IO error occurred with '{}': {}", data, e)),
+            Error::Command(exit, data) => f.write_fmt(format_args!("Command, '{}', exited with code {}", data, exit)),
         }
     }
 }
@@ -95,22 +95,22 @@ impl FSchema {
                         }
                         
                         match options.ftype {
-                            FileType::Text => fs::write(&path, data).map_err(|e| Error::IO(e))?,
+                            FileType::Text => fs::write(&path, data).map_err(|e| Error::IO(e, data.to_string()))?,
                             FileType::Copy => fs::copy(resolve_data_path(data, options.internal, &root), &path)
                                 .map(|_| ())
-                                .map_err(|e| Error::IO(e))?,
+                                .map_err(|e| Error::IO(e, data.to_string()))?,
                             FileType::Link => {
                                 unix::fs::symlink(resolve_data_path(data, options.internal, &root), &path)
-                                    .map_err(|e| Error::IO(e))?
+                                    .map_err(|e| Error::IO(e, data.to_string()))?
                             }
-                            FileType::Piped => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e))?,
+                            FileType::Piped => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e, data.to_string()))?,
                             FileType::Bytes => {
                                 fs::write(&path, data.chars()
                                     .chunks(2)
                                     .into_iter()
                                     .map(|byte| u8::from_str_radix(&byte.collect::<String>(), 16).unwrap())
                                     .collect::<Vec<u8>>()
-                                ).map_err(|e| Error::IO(e))?
+                                ).map_err(|e| Error::IO(e, data.to_string()))?
                             },
                         }
 
@@ -119,13 +119,13 @@ impl FSchema {
                                 .read(true)
                                 .write(true)
                                 .open("foo.txt")
-                                .map_err(|e| Error::IO(e))?;
-                            let metadata = f.metadata().map_err(|e| Error::IO(e))?;
+                                .map_err(|e| Error::IO(e, data.to_string()))?;
+                            let metadata = f.metadata().map_err(|e| Error::IO(e, data.to_string()))?;
                             metadata.permissions().set_mode(mode);
                         }
                     }
                     Node::Directory(contents) => {
-                        fs::create_dir(path).map_err(|e| Error::IO(e))?;
+                        fs::create_dir_all(&path).map_err(|e| Error::IO(e, format!("{:?}", path)))?;
 
                         backstack.extend(
                             contents
@@ -162,8 +162,8 @@ fn run(command: &str) -> Result<i32, Error> {
     Command::new("bash")
         .args(["-c", &command])
         .spawn()
-        .map_err(|e| Error::IO(e))
-        .and_then(|mut child| child.wait().map_err(|e| Error::IO(e)))
+        .map_err(|e| Error::IO(e, command.to_string()))
+        .and_then(|mut child| child.wait().map_err(|e| Error::IO(e, command.to_string())))
         .map(|status| status.code().unwrap_or(0))
 }
 
@@ -171,6 +171,6 @@ fn pipe(command: &str) -> Result<String, Error> {
     Command::new("bash")
         .args(["-c", &command])
         .output()
-        .map_err(|e| Error::IO(e))
+        .map_err(|e| Error::IO(e, command.to_string()))
         .map(|output|  String::from_utf8_lossy(&output.stdout).to_string())
 }
