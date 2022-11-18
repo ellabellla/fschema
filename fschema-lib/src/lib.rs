@@ -9,6 +9,7 @@ use std::{
 };
 
 use parse::Node;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 pub mod parse;
@@ -88,7 +89,14 @@ impl FSchema {
                                 unix::fs::symlink(data, &path).map_err(|e| Error::IO(e))?
                             }
                             FileType::Pipe => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e))?,
-                            FileType::Bytes => todo!(),
+                            FileType::Bytes => {
+                                fs::write(&path, data.chars()
+                                    .chunks(2)
+                                    .into_iter()
+                                    .map(|byte| u8::from_str_radix(&byte.collect::<String>(), 16).unwrap())
+                                    .collect::<Vec<u8>>()
+                                ).map_err(|e| Error::IO(e))?
+                            },
                         }
 
                         if let Some(mode) = options.mode {
