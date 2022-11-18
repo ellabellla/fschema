@@ -48,6 +48,7 @@ pub enum FileType {
 pub struct FileOptions {
     ftype: Option<FileType>,
     mode: Option<u32>,
+    defer: bool,
 }
 
 impl FSchema {

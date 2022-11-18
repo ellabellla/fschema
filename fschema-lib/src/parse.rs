@@ -100,6 +100,7 @@ impl<'de> Visitor<'de> for FileOptionsVisitor {
             match key.as_str() {
                 "ftype" => options.ftype = Some(map.next_value::<FileType>()?),
                 "mode" => options.mode = Some(u32::from_str_radix(&map.next_value::<String>()?, 8).map_err(|_| Error::custom("expected octal number"))?),
+                "defer" => options.defer = map.next_value::<bool>()?,
                 _ => return Err(Error::unknown_field(&key, &["ftype", "mode"]))
             }
         }
@@ -272,11 +273,11 @@ mod tests {
     #[test]
     fn test() {
         let mut root = HashMap::new();
-        root.insert("hello".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Text), mode: None}, data: "Hello, World!".to_string() });
-        root.insert("hex".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Bytes), mode: None}, data: "00aF".to_string() });
+        root.insert("hello".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Text), mode: None, defer: false}, data: "Hello, World!".to_string() });
+        root.insert("hex".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Bytes), mode: None, defer: false}, data: "00aF".to_string() });
 
         let mut dir = HashMap::new();
-        dir.insert("file".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Text), mode: None}, data: "a file".to_string() });
+        dir.insert("file".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Text), mode: None, defer: false}, data: "a file".to_string() });
 
         root.insert("dir".to_string(), Node::Directory(dir));
 
