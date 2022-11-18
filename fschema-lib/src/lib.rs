@@ -50,6 +50,7 @@ pub struct FileOptions {
     ftype: Option<FileType>,
     mode: Option<u32>,
     defer: bool,
+    internal: bool,
 }
 
 impl FSchema {
@@ -85,14 +86,15 @@ impl FSchema {
                             defered.push((inner_path, node));
                             continue;
                         }
-
+                        
                         match options.ftype.as_ref().unwrap_or(&FileType::Text) {
                             FileType::Text => fs::write(&path, data).map_err(|e| Error::IO(e))?,
-                            FileType::Copy => fs::copy(data, &path)
+                            FileType::Copy => fs::copy(resolve_data_path(data, options.internal, &root), &path)
                                 .map(|_| ())
                                 .map_err(|e| Error::IO(e))?,
                             FileType::Link => {
-                                unix::fs::symlink(data, &path).map_err(|e| Error::IO(e))?
+                                unix::fs::symlink(resolve_data_path(data, options.internal, &root), &path)
+                                    .map_err(|e| Error::IO(e))?
                             }
                             FileType::Pipe => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e))?,
                             FileType::Bytes => {
@@ -137,6 +139,14 @@ impl FSchema {
             run(postbuild)?;
         }
         Ok(())
+    }
+}
+
+fn resolve_data_path(data: &str, internal: bool, root: &PathBuf) -> String {
+    if internal {
+        root.join(data).as_os_str().to_string_lossy().to_string()
+    } else {
+        data.to_string()
     }
 }
 
