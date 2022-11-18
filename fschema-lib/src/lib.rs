@@ -49,7 +49,7 @@ pub enum FileType {
 pub struct FileOptions {
     ftype: Option<FileType>,
     mode: Option<u32>,
-    defer: bool,
+    defer: u64,
     internal: bool,
 }
 
@@ -75,6 +75,7 @@ impl FSchema {
             .collect::<Vec<(String, &Node)>>();
         let mut backstack = vec![];
         let mut defered = vec![];
+        let mut deferal_level = 0;
 
         while stack.len() != 0 {
             while let Some((inner_path, node)) = stack.pop() {
@@ -82,7 +83,7 @@ impl FSchema {
 
                 match node {
                     Node::File { data, options } => {
-                        if options.defer {
+                        if options.defer > deferal_level{
                             defered.push((inner_path, node));
                             continue;
                         }
@@ -132,6 +133,7 @@ impl FSchema {
             (stack, backstack) = (backstack, stack);
             if stack.len() == 0 {
                 (stack, defered) = (defered, stack);
+                deferal_level += 1;
             }
         }
 
