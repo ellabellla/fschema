@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr, process::exit, env};
+use std::{path::PathBuf, str::FromStr, process::exit, env, fs};
 
 use clap::Parser;
 use fschema_lib::FSchema;
@@ -46,7 +46,12 @@ pub fn main() {
         },
     };
 
-    if !creation_path.is_dir() {
+    if !creation_path.exists() {
+        if let Err(e) =  fs::create_dir(&creation_path){
+            println!("Output directory could not be created, {}", e);
+            exit(1);
+        }
+    } else if !creation_path.is_dir() {
         println!("Output directory must be a directory");
         exit(1);
     }
