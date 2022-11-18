@@ -47,7 +47,7 @@ pub fn main() {
     };
 
     if !creation_path.exists() {
-        if let Err(e) =  fs::create_dir(&creation_path){
+        if let Err(e) =  fs::create_dir_all(&creation_path){
             println!("Output directory could not be created, {}", e);
             exit(1);
         }
