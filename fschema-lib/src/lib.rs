@@ -101,7 +101,11 @@ impl FSchema {
                         }
                         
                         match options.ftype {
-                            FileType::Text => fs::write(&path, data).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
+                            FileType::Text => if data.len() == 0 {
+                                File::create(&path).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?;
+                            } else {
+                                fs::write(&path, data).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?
+                            },
                             FileType::Copy => fs::copy(resolve_data_path(data, options.internal, &root), &path)
                                 .map(|_| ())
                                 .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
@@ -124,7 +128,7 @@ impl FSchema {
                             let f = File::options()
                                 .read(true)
                                 .write(true)
-                                .open("foo.txt")
+                                .open(&path)
                                 .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?;
                             let metadata = f.metadata().map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?;
                             metadata.permissions().set_mode(mode);
