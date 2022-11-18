@@ -101,22 +101,22 @@ impl FSchema {
                         }
                         
                         match options.ftype {
-                            FileType::Text => fs::write(&path, data).map_err(|e| Error::IO(e, format!("{}:{}", inner_path, data)))?,
+                            FileType::Text => fs::write(&path, data).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
                             FileType::Copy => fs::copy(resolve_data_path(data, options.internal, &root), &path)
                                 .map(|_| ())
-                                .map_err(|e| Error::IO(e, format!("{}:{}", inner_path, data)))?,
+                                .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
                             FileType::Link => {
                                 unix::fs::symlink(resolve_data_path(data, options.internal, &root), &path)
-                                    .map_err(|e| Error::IO(e, format!("{}:{}", inner_path, data)))?
+                                    .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?
                             }
-                            FileType::Piped => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e, format!("{}:{}", inner_path, data)))?,
+                            FileType::Piped => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
                             FileType::Bytes => {
                                 fs::write(&path, data.chars()
                                     .chunks(2)
                                     .into_iter()
                                     .map(|byte| u8::from_str_radix(&byte.collect::<String>(), 16).unwrap())
                                     .collect::<Vec<u8>>()
-                                ).map_err(|e| Error::IO(e, format!("{}:{}", inner_path, data)))?
+                                ).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?
                             },
                         }
 
@@ -125,8 +125,8 @@ impl FSchema {
                                 .read(true)
                                 .write(true)
                                 .open("foo.txt")
-                                .map_err(|e| Error::IO(e, format!("{}:{}", inner_path, data)))?;
-                            let metadata = f.metadata().map_err(|e| Error::IO(e, format!("{}:{}", inner_path, data)))?;
+                                .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?;
+                            let metadata = f.metadata().map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?;
                             metadata.permissions().set_mode(mode);
                         }
                     }
