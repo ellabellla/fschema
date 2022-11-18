@@ -41,6 +41,7 @@ pub enum FileType {
     Copy,
     Pipe,
     Link,
+    Bytes,
 }
 
 #[derive(Debug, Default)]
@@ -86,6 +87,7 @@ impl FSchema {
                                 unix::fs::symlink(data, &path).map_err(|e| Error::IO(e))?
                             }
                             FileType::Pipe => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e))?,
+                            FileType::Bytes => todo!(),
                         }
 
                         if let Some(mode) = options.mode {

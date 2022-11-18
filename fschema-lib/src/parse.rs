@@ -226,6 +226,20 @@ impl<'de> Visitor<'de> for NodeVisitor {
         let options = options.unwrap_or(FileOptions::default());
 
         if let Some(data) = data {
+            if let Some(FileType::Bytes) = options.ftype {
+                if !data.chars().all(|c| {
+                    c.is_ascii_digit() || 
+                    c.to_ascii_lowercase() == 'a'|| 
+                    c.to_ascii_lowercase() == 'b'|| 
+                    c.to_ascii_lowercase() == 'c'|| 
+                    c.to_ascii_lowercase() == 'd'|| 
+                    c.to_ascii_lowercase() == 'e'|| 
+                    c.to_ascii_lowercase() == 'f'
+                }) {
+                    return Err(Error::custom("Expected data of byte file to be a hexadecimal number"))
+                }
+            }
+
             Ok(Node::File { options, data })
         } else {
             Err(Error::custom("Expected file data"))
@@ -259,6 +273,7 @@ mod tests {
     fn test() {
         let mut root = HashMap::new();
         root.insert("hello".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Text), mode: None}, data: "Hello, World!".to_string() });
+        root.insert("hex".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Bytes), mode: None}, data: "00aF".to_string() });
 
         let mut dir = HashMap::new();
         dir.insert("file".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Text), mode: None}, data: "a file".to_string() });
