@@ -1,7 +1,7 @@
 use std::{path::PathBuf, str::FromStr, process::exit, env};
 
 use clap::Parser;
-use fschema::FSchema;
+use fschema_lib::FSchema;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

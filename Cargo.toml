@@ -1,8 +1,5 @@
 [workspace]
 members = [
+    "fschema-lib",
     "fschema",
-    "fschema-bin",
 ]
-
-[workspace.dependencies]
-fschema = { path = "fschema" }
