@@ -60,9 +60,9 @@ impl Serialize for FileOptions {
         S: serde::Serializer 
     {   
         let mut map = serializer.serialize_map(None)?;
-        if let Some(ftype) = &self.ftype {
-            map.serialize_entry("ftype", ftype)?;
-        }
+        map.serialize_entry("ftype", &self.ftype)?;
+        map.serialize_entry("defer", &self.defer)?;
+        map.serialize_entry("internal", &self.internal)?;
         if let Some(mode) = &self.mode {
             map.serialize_entry("mode", mode)?;
         }
@@ -94,7 +94,7 @@ impl<'de> Visitor<'de> for FileOptionsVisitor {
         let mut options = FileOptions::default();
         while let Some(key) = map.next_key::<String>()? {
             match key.as_str() {
-                "ftype" => options.ftype = Some(map.next_value::<FileType>()?),
+                "ftype" => options.ftype = map.next_value::<FileType>()?,
                 "mode" => options.mode = Some(u32::from_str_radix(&map.next_value::<String>()?, 8).map_err(|_| Error::custom("expected octal number"))?),
                 "defer" => options.defer = map.next_value::<u64>()?,
                 "internal" => options.internal = map.next_value::<bool>()?,
@@ -224,7 +224,7 @@ impl<'de> Visitor<'de> for NodeVisitor {
         let options = options.unwrap_or(FileOptions::default());
 
         if let Some(data) = data {
-            if let Some(FileType::Bytes) = options.ftype {
+            if let FileType::Bytes = options.ftype {
                 if !data.chars().all(|c| {
                     c.is_ascii_digit() || 
                     c.to_ascii_lowercase() == 'a'|| 
@@ -270,11 +270,11 @@ mod tests {
     #[test]
     fn test() {
         let mut root = HashMap::new();
-        root.insert("hello".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Text), mode: None, defer: 0, internal: false}, data: "Hello, World!".to_string() });
-        root.insert("hex".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Bytes), mode: None, defer: 0, internal: false}, data: "00aF".to_string() });
+        root.insert("hello".to_string(), Node::File { options: FileOptions{ftype: FileType::Text, mode: None, defer: 0, internal: false}, data: "Hello, World!".to_string() });
+        root.insert("hex".to_string(), Node::File { options: FileOptions{ftype: FileType::Bytes, mode: None, defer: 0, internal: false}, data: "00aF".to_string() });
 
         let mut dir = HashMap::new();
-        dir.insert("file".to_string(), Node::File { options: FileOptions{ftype: Some(FileType::Text), mode: None, defer: 0, internal: false}, data: "a file".to_string() });
+        dir.insert("file".to_string(), Node::File { options: FileOptions::default(), data: "a file".to_string() });
 
         root.insert("dir".to_string(), Node::Directory(dir));
 

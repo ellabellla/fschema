@@ -40,14 +40,20 @@ pub struct FSchema {
 pub enum FileType {
     Text,
     Copy,
-    Pipe,
+    Piped,
     Link,
     Bytes,
 }
 
+impl Default for FileType {
+    fn default() -> Self {
+        FileType::Text
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct FileOptions {
-    ftype: Option<FileType>,
+    ftype: FileType,
     mode: Option<u32>,
     defer: u64,
     internal: bool,
@@ -88,7 +94,7 @@ impl FSchema {
                             continue;
                         }
                         
-                        match options.ftype.as_ref().unwrap_or(&FileType::Text) {
+                        match options.ftype {
                             FileType::Text => fs::write(&path, data).map_err(|e| Error::IO(e))?,
                             FileType::Copy => fs::copy(resolve_data_path(data, options.internal, &root), &path)
                                 .map(|_| ())
@@ -97,7 +103,7 @@ impl FSchema {
                                 unix::fs::symlink(resolve_data_path(data, options.internal, &root), &path)
                                     .map_err(|e| Error::IO(e))?
                             }
-                            FileType::Pipe => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e))?,
+                            FileType::Piped => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e))?,
                             FileType::Bytes => {
                                 fs::write(&path, data.chars()
                                     .chunks(2)
