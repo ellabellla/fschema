@@ -73,6 +73,7 @@ impl FSchema {
             .map(|(name, node)| (name.to_string(), node))
             .collect::<Vec<(String, &Node)>>();
         let mut backstack = vec![];
+        let mut defered = vec![];
 
         while stack.len() != 0 {
             while let Some((inner_path, node)) = stack.pop() {
@@ -80,6 +81,11 @@ impl FSchema {
 
                 match node {
                     Node::File { data, options } => {
+                        if options.defer {
+                            defered.push((inner_path, node));
+                            continue;
+                        }
+
                         match options.ftype.as_ref().unwrap_or(&FileType::Text) {
                             FileType::Text => fs::write(&path, data).map_err(|e| Error::IO(e))?,
                             FileType::Copy => fs::copy(data, &path)
@@ -122,6 +128,9 @@ impl FSchema {
             }
 
             (stack, backstack) = (backstack, stack);
+            if stack.len() == 0 {
+                (stack, defered) = (defered, stack);
+            }
         }
 
         if let Some(postbuild) = &self.postbuild {
