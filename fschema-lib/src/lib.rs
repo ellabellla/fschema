@@ -1,3 +1,4 @@
+
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -5,7 +6,7 @@ use std::{
     io,
     os::unix::{self, prelude::PermissionsExt},
     path::PathBuf,
-    process::Command,
+    process::Command, str::FromStr,
 };
 
 use itertools::Itertools;
@@ -14,9 +15,14 @@ use serde::{Deserialize, Serialize};
 pub mod parse;
 
 #[derive(Debug)]
+/// FSchema Errors
 pub enum Error {
+    /// An IO error occurred
     IO(io::Error, String),
+    /// An Error occurred whilst running a command
     Command(i32, String),
+    /// An Error occurred converting a string to a path
+    Path(std::convert::Infallible, String),
 }
 
 impl Display for Error {
@@ -24,11 +30,14 @@ impl Display for Error {
         match self {
             Error::IO(e, data) => f.write_fmt(format_args!("An IO error occurred with '{}': {}", data, e)),
             Error::Command(exit, data) => f.write_fmt(format_args!("Command, '{}', exited with code {}", data, exit)),
+            Error::Path(e, data) => f.write_fmt(format_args!("Could not create path from '{}': {}", data, e)),
         }
     }
 }
 
 #[derive(Debug, Default)]
+/// FSchema
+/// A file system structure schema. Used to create nested directories and files.
 pub struct FSchema {
     root: HashMap<String, Node>,
     prebuild: Vec<String>,
@@ -37,17 +46,24 @@ pub struct FSchema {
 
 
 #[derive(Debug)]
+/// Node in file system structure tree
 pub enum Node {
     File{data: String, options: FileOptions},
     Directory(HashMap<String, Node>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// File Data Type
 pub enum FileType {
+    /// Text
     Text,
+    /// Copy of existing file
     Copy,
+    /// Data dynamically created from command
     Piped,
+    /// Symbolic link to file 
     Link,
+    /// Create from hex representation of bytes
     Bytes,
 }
 
@@ -58,22 +74,33 @@ impl Default for FileType {
 }
 
 #[derive(Debug, Default)]
+/// File options
 pub struct FileOptions {
+    /// Type of file data
     ftype: FileType,
+    /// Permissions (octal)
     mode: Option<u32>,
+    /// At what stage should this file be created
     defer: u64,
+    /// Is the path stored in the file data relative to the root of the file system structure
     internal: bool,
 }
 
 impl FSchema {
-    pub fn from_file(path: &PathBuf) -> io::Result<FSchema> {
-        Ok(serde_json::from_reader(File::open(path)?)?)
+    /// Create from reader, Must implement io::Read.
+    pub fn from_reader<R>(reader: &mut R) -> io::Result<FSchema> 
+    where
+        R: io::Read
+    {
+        Ok(serde_json::from_reader(reader)?)
     }
 
+    /// Create from string containing json
     pub fn from_str(json: &str) -> io::Result<FSchema> {
         Ok(serde_json::from_str(json)?)
     }
 
+    /// Create file system structure from schema. Takes the location of where to place root as an argument 
     pub fn create(&self, root: PathBuf) -> Result<(), Error> {
 
         for command in &self.prebuild {
@@ -106,11 +133,11 @@ impl FSchema {
                             } else {
                                 fs::write(&path, data).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?
                             },
-                            FileType::Copy => fs::copy(resolve_data_path(data, options.internal, &root), &path)
+                            FileType::Copy => fs::copy(resolve_data_path(data, options.internal, &root)?, &path)
                                 .map(|_| ())
                                 .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
                             FileType::Link => {
-                                unix::fs::symlink(resolve_data_path(data, options.internal, &root), &path)
+                                unix::fs::symlink(resolve_data_path(data, options.internal, &root)?, &path)
                                     .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?
                             }
                             FileType::Piped => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
@@ -160,27 +187,45 @@ impl FSchema {
     }
 }
 
-fn resolve_data_path(data: &str, internal: bool, root: &PathBuf) -> String {
+/// Resolve path stored in data string
+fn resolve_data_path(data: &str, internal: bool, root: &PathBuf) -> Result<PathBuf, Error> {
     if internal {
-        root.join(data).as_os_str().to_string_lossy().to_string()
+        Ok(root.join(data))
     } else {
-        data.to_string()
+        PathBuf::from_str(data).map_err(|e| Error::Path(e, data.to_string()))
     }
 }
 
-fn run(command: &str) -> Result<i32, Error> {
+/// Run a command in bash
+fn run(command: &str) -> Result<(), Error> {
     Command::new("bash")
         .args(["-c", &command])
         .spawn()
         .map_err(|e| Error::IO(e, command.to_string()))
         .and_then(|mut child| child.wait().map_err(|e| Error::IO(e, command.to_string())))
-        .map(|status| status.code().unwrap_or(0))
+        .and_then(|status| {
+            let status = status.code().unwrap_or(0);
+            if status == 0 {
+                Ok(())
+            } else {
+                Err(Error::Command(status, command.to_string()))
+            }
+        })
 }
 
+
+/// Capture the output of a command run in bash
 fn pipe(command: &str) -> Result<String, Error> {
     Command::new("bash")
         .args(["-c", &command])
         .output()
         .map_err(|e| Error::IO(e, command.to_string()))
-        .map(|output|  String::from_utf8_lossy(&output.stdout).to_string())
+        .and_then(|output| {
+            let status = output.status.code().unwrap_or(0);
+            if status == 0 {
+                Ok(String::from_utf8_lossy(&output.stdout).to_string())
+            } else {
+                Err(Error::Command(status, command.to_string()))
+            }
+        })
 }
