@@ -38,10 +38,10 @@ Files can be supplied with 4 different properties:
 - "mode" defines what permissions a file should be created with as an octal. 
 - "defer" defines when the file should be created. Files with lower "defer" properties will be created before files with higher "defer" properties.  The default "defer" value is 0
 - "ftype" defines how the file data should be treated.  The default "ftype" is "Text".
-  - "Text" type treats data as the text inside the file. 
-  - "Copy" type will treat data as the path of a file to be copied for this file. 
-  - "Piped" type treats data as a command and will pipe the output of the command into the file. 
-  - "Link" type will treat the data as the path of a file to be symbolically for this file.
+  - "Text" type treats the file data as the text inside the file. 
+  - "Copy" type will treat the file data as the path of a file to be copied for this file. 
+  - "Piped" type treats the file data as a command and will pipe the output of the command into the file. 
+  - "Link" type will treat the file data as a path of a file to be symbolically linked for this file.
 - "internal" will defines whether the path given by the files data should be treated as a relative path to the filesystem's root path or not (only works with "ftype"s that treat file data as paths)
 ```json
 {
