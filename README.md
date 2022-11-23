@@ -25,7 +25,7 @@ A directory is an object where the keys are the names of the files/directories a
 }
 ```
 
-A file is an array containing the data of the file, as a sting, and an optional object containing file properties.
+A file is an array containing the data of the file, as a sting, and an optional object containing file properties. The first string will be treated as the data and the first object will be treated as the file properties. Any addition elements in the array will be ignored. This is useful for creating comments.
 ```json
 {
     "root": {
@@ -42,6 +42,8 @@ Files can be supplied with 4 different properties:
   - "Copy" type will treat the file data as the path of a file to be copied for this file. 
   - "Piped" type treats the file data as a command and will pipe the output of the command into the file. 
   - "Link" type will treat the file data as a path of a file to be symbolically linked for this file.
+  - "Hex" type will treat the file data as a hex representation of bytes
+  - "Bits" type will treat the file data as a string bits
 - "internal" will defines whether the path given by the files data should be treated as a relative path to the filesystem's root path or not (only works with "ftype"s that treat file data as paths)
 ```json
 {
