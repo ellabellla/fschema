@@ -222,9 +222,9 @@ impl<'de> Visitor<'de> for NodeVisitor {
         let options = options.unwrap_or(FileOptions::default());
 
         if let Some(data) = data {
-            if let FileType::Bytes = options.ftype {
+            if let FileType::Hex = options.ftype {
                 if data.len() % 2 != 0 {
-                    return Err(Error::custom("Expected len of byte file to be a multiple of 2"))
+                    return Err(Error::custom("Expected len of hex file to be a multiple of 2"))
                 }
                 if !data.chars().all(|c| {
                     c.is_ascii_digit() || 
@@ -235,7 +235,7 @@ impl<'de> Visitor<'de> for NodeVisitor {
                     c.to_ascii_lowercase() == 'e'|| 
                     c.to_ascii_lowercase() == 'f'
                 }) {
-                    return Err(Error::custom("Expected data of byte file to be a hexadecimal number"))
+                    return Err(Error::custom("Expected data of hex file to be a hexadecimal number"))
                 }
             } else if let FileType::Bits = options.ftype {
                 if data.len() % 8 != 0 {
@@ -279,7 +279,7 @@ mod tests {
     fn test() {
         let mut root = HashMap::new();
         root.insert("hello".to_string(), Node::File { options: FileOptions{ftype: FileType::Text, mode: None, defer: 0, internal: false}, data: "Hello, World!".to_string() });
-        root.insert("hex".to_string(), Node::File { options: FileOptions{ftype: FileType::Bytes, mode: None, defer: 0, internal: false}, data: "00aF".to_string() });
+        root.insert("hex".to_string(), Node::File { options: FileOptions{ftype: FileType::Hex, mode: None, defer: 0, internal: false}, data: "00aF".to_string() });
 
         let mut dir = HashMap::new();
         dir.insert("file".to_string(), Node::File { options: FileOptions::default(), data: "a file".to_string() });

@@ -64,7 +64,8 @@ pub enum FileType {
     /// Symbolic link to file 
     Link,
     /// Create from hex representation of bytes
-    Bytes,
+    Hex,
+    /// Create from bits
     Bits,
 }
 
@@ -142,7 +143,7 @@ impl FSchema {
                                     .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?
                             }
                             FileType::Piped => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
-                            FileType::Bytes => {
+                            FileType::Hex => {
                                 fs::write(&path, data.chars()
                                     .chunks(2)
                                     .into_iter()
