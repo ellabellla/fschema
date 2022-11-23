@@ -124,6 +124,7 @@ impl Serialize for Node {
                 }
                 map.end()
             },
+            Node::Comment(comment) => serializer.serialize_str(comment),
         }
     }
 }
@@ -264,6 +265,27 @@ impl<'de> Visitor<'de> for NodeVisitor {
 
         Ok(Node::Directory(dir))
     }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: Error, 
+    {
+        Ok(Node::Comment(v))
+    }
+
+    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+        where
+            E: Error, 
+    {
+        Ok(Node::Comment(v.to_string()))
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: Error,
+    {
+        Ok(Node::Comment(v.to_string()))     
+    }
 }
 
 
@@ -280,6 +302,7 @@ mod tests {
         let mut root = HashMap::new();
         root.insert("hello".to_string(), Node::File { options: FileOptions{ftype: FileType::Text, mode: None, defer: 0, internal: false}, data: "Hello, World!".to_string() });
         root.insert("hex".to_string(), Node::File { options: FileOptions{ftype: FileType::Hex, mode: None, defer: 0, internal: false}, data: "00aF".to_string() });
+        root.insert("comment".to_string(), Node::Comment("a comment".to_string()));
 
         let mut dir = HashMap::new();
         dir.insert("file".to_string(), Node::File { options: FileOptions::default(), data: "a file".to_string() });

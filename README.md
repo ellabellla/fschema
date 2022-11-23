@@ -54,6 +54,15 @@ Files can be supplied with 4 different properties:
 }
 ```
 
+A directory may also contain comment entries. A comment entries has the value of a string and will be ignored.
+```json
+{
+    "root": {
+        "comment": "a comment"
+    }
+}
+```
+
 ## The library
 Loading a schema
 ```rust

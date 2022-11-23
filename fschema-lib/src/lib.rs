@@ -50,6 +50,7 @@ pub struct FSchema {
 pub enum Node {
     File{data: String, options: FileOptions},
     Directory(HashMap<String, Node>),
+    Comment(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -178,6 +179,7 @@ impl FSchema {
                                 .map(|(name, node)| (inner_path.to_string() + "/" + name, node)),
                         );
                     }
+                    Node::Comment(_) => (),
                 }
             }
 
