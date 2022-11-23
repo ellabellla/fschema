@@ -205,11 +205,15 @@ impl<'de> Visitor<'de> for NodeVisitor {
         let mut options = None; 
         let mut data = None;
         
-        for _ in 0..2 {
+        loop {
             match seq.next_element::<InnerFileNode>()? {
                 Some(inner_node) => match inner_node {
-                    InnerFileNode::FileOptions(found_options) => options = Some(found_options),
-                    InnerFileNode::Data(found_data) => data = Some(found_data),
+                    InnerFileNode::FileOptions(found_options) => if options.is_none() {
+                        options = Some(found_options)
+                    },
+                    InnerFileNode::Data(found_data) => if data.is_none() {
+                        data = Some(found_data)
+                    },
                 },
                 None => break,
             }
@@ -219,6 +223,9 @@ impl<'de> Visitor<'de> for NodeVisitor {
 
         if let Some(data) = data {
             if let FileType::Bytes = options.ftype {
+                if data.len() % 2 != 0 {
+                    return Err(Error::custom("Expected len of byte file to be a multiple of 2"))
+                }
                 if !data.chars().all(|c| {
                     c.is_ascii_digit() || 
                     c.to_ascii_lowercase() == 'a'|| 
@@ -229,6 +236,13 @@ impl<'de> Visitor<'de> for NodeVisitor {
                     c.to_ascii_lowercase() == 'f'
                 }) {
                     return Err(Error::custom("Expected data of byte file to be a hexadecimal number"))
+                }
+            } else if let FileType::Bits = options.ftype {
+                if data.len() % 8 != 0 {
+                    return Err(Error::custom("Expected len of bit file to be a multiple of 8"))
+                }
+                if !data.chars().all(|c| c == '0' || c == '1') {
+                    return Err(Error::custom("Expected data of bit file to be a string of bits"))
                 }
             }
 

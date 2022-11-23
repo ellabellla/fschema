@@ -49,6 +49,7 @@ pub enum FileType {
     Piped,
     Link,
     Bytes,
+    Bits,
 }
 
 impl Default for FileType {
@@ -118,6 +119,12 @@ impl FSchema {
                                     .collect::<Vec<u8>>()
                                 ).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?
                             },
+                            FileType::Bits => fs::write(&path, data.chars()
+                                .chunks(8)
+                                .into_iter()
+                                .map(|byte| u8::from_str_radix(&byte.collect::<String>(), 2).unwrap())
+                                .collect::<Vec<u8>>()
+                            ).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
                         }
 
                         if let Some(mode) = options.mode {
