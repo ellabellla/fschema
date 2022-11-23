@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr, process::exit, env, fs};
+use std::{path::PathBuf, str::FromStr, process::exit, env, fs::{self, File}};
 
 use clap::Parser;
 use fschema_lib::FSchema;
@@ -56,7 +56,15 @@ pub fn main() {
         exit(1);
     }
 
-    let schema = match FSchema::from_file(&schema_path) {
+    let mut reader = match File::open(&schema_path) {
+        Ok(schema) => schema,
+        Err(e) => {
+            println!("Couldn't open schema, {}", e);
+            exit(1);
+        },
+    };
+
+    let schema = match FSchema::from_reader(&mut reader) {
         Ok(schema) => schema,
         Err(e) => {
             println!("Couldn't parse schema, {}", e);
