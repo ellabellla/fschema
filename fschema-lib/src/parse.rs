@@ -44,7 +44,11 @@ impl<'de> Visitor<'de> for FSchemaVisitor {
         let mut schema = FSchema::default();
         while let Some(key) = map.next_key::<String>()? {
             match key.as_str() {
-                "root" => schema.root = map.next_value::<HashMap<String, Node>>()?,
+                "root" => {
+                    let Root(contents, ord) = map.next_value::<Root>()?;
+                    schema.root = contents;
+                    schema.root_ord = ord;
+                },
                 "prebuild" => schema.prebuild = map.next_value::<Vec<String>>()?,
                 "postbuild" => schema.postbuild = map.next_value::<Vec<String>>()?,
                 _ => return Err(Error::unknown_field(&key, &["root", "prebuild", "postbuild"]))
@@ -53,6 +57,22 @@ impl<'de> Visitor<'de> for FSchemaVisitor {
         Ok(schema)
     }
 }
+
+struct Root (HashMap<String, Node>, Vec<String>);
+
+impl<'de> Deserialize<'de> for Root {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de> 
+    {  
+        if let Node::Directory { contents, ord } = deserializer.deserialize_map(NodeVisitor)? {
+            Ok(Root(contents, ord))
+        } else {
+            return Err(Error::custom("Expected root object"))
+        }
+    }
+}
+
 
 impl Serialize for FileOptions {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -117,9 +137,9 @@ impl Serialize for Node {
                 seq.serialize_element(data)?;
                 seq.end()
             },
-            Node::Directory(dir) => {
-                let mut map = serializer.serialize_map(Some(dir.len()))?;
-                for (key, value) in dir {
+            Node::Directory{contents, ord:_} => {
+                let mut map = serializer.serialize_map(Some(contents.len()))?;
+                for (key, value) in contents {
                     map.serialize_entry(key, value)?;
                 }
                 map.end()
@@ -257,13 +277,14 @@ impl<'de> Visitor<'de> for NodeVisitor {
         where
             A: serde::de::MapAccess<'de>, 
     {
-        let mut dir = HashMap::new();
-        
+        let mut contents = HashMap::new();
+        let mut ord = vec![];
         while let Some((key, node)) = map.next_entry::<String, Node>()? {
-            dir.insert(key, node);
+            contents.insert(key.to_string(), node);
+            ord.push(key);
         }
 
-        Ok(Node::Directory(dir))
+        Ok(Node::Directory{contents, ord})
     }
 
     fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
@@ -307,9 +328,9 @@ mod tests {
         let mut dir = HashMap::new();
         dir.insert("file".to_string(), Node::File { options: FileOptions::default(), data: "a file".to_string() });
 
-        root.insert("dir".to_string(), Node::Directory(dir));
+        root.insert("dir".to_string(), Node::Directory{contents: dir, ord: vec!["file".to_string()]});
 
-        let schema = FSchema{root, postbuild: vec![], prebuild: vec![]};
+        let schema = FSchema{root, root_ord: vec!["hello".to_string(), "hex".to_string(), "comment".to_string(), "dir".to_string()],  postbuild: vec![], prebuild: vec![]};
         let json = serde_json::to_string_pretty(&schema).unwrap();
         println!("{}", json);   
         println!("{:?}", serde_json::from_str::<FSchema>(&json).unwrap())

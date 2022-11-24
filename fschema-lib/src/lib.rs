@@ -1,6 +1,6 @@
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt::Display,
     fs::{self, File},
     io,
@@ -40,6 +40,7 @@ impl Display for Error {
 /// A file system structure schema. Used to create nested directories and files.
 pub struct FSchema {
     root: HashMap<String, Node>,
+    root_ord: Vec<String>,
     prebuild: Vec<String>,
     postbuild: Vec<String>,
 }
@@ -49,7 +50,7 @@ pub struct FSchema {
 /// Node in file system structure tree
 pub enum Node {
     File{data: String, options: FileOptions},
-    Directory(HashMap<String, Node>),
+    Directory{contents: HashMap<String, Node>, ord: Vec<String>},
     Comment(String),
 }
 
@@ -111,12 +112,12 @@ impl FSchema {
         }
 
         let mut stack = self
-            .root
+            .root_ord
             .iter()
-            .map(|(name, node)| (name.to_string(), node))
-            .collect::<Vec<(String, &Node)>>();
-        let mut backstack = vec![];
-        let mut defered = vec![];
+            .map(|name| (name.to_string(), &self.root[name]))
+            .collect::<VecDeque<(String, &Node)>>();
+        let mut backstack = VecDeque::new();
+        let mut defered = VecDeque::new();
         let mut deferal_level = 0;
 
         if !root.exists() {
@@ -124,13 +125,13 @@ impl FSchema {
         }
 
         while stack.len() != 0 {
-            while let Some((inner_path, node)) = stack.pop() {
+            while let Some((inner_path, node)) = stack.pop_front() {
                 let path = root.join(&inner_path);
 
                 match node {
                     Node::File { data, options } => {
                         if options.defer > deferal_level{
-                            defered.push((inner_path, node));
+                            defered.push_back((inner_path, node));
                             continue;
                         }
                         
@@ -171,13 +172,13 @@ impl FSchema {
                             metadata.permissions().set_mode(mode);
                         }
                     }
-                    Node::Directory(contents) => {
+                    Node::Directory{contents, ord} => {
                         fs::create_dir_all(&path).map_err(|e| Error::IO(e, format!("{:?}", path)))?;
 
                         backstack.extend(
-                            contents
+                            ord
                                 .iter()
-                                .map(|(name, node)| (inner_path.to_string() + "/" + name, node)),
+                                .map(|name| (inner_path.to_string() + "/" + name, &contents[name])),
                         );
                     }
                     Node::Comment(_) => (),
