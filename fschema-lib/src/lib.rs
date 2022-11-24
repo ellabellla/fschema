@@ -1,6 +1,6 @@
 
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     fmt::Display,
     fs::{self, File},
     io,
@@ -114,9 +114,9 @@ impl FSchema {
             .root
             .iter()
             .map(|(name, node)| (name.to_string(), node))
-            .collect::<VecDeque<(String, &Node)>>();
-        let mut backstack = VecDeque::new();
-        let mut defered = VecDeque::new();
+            .collect::<Vec<(String, &Node)>>();
+        let mut backstack = vec![];
+        let mut defered = vec![];
         let mut deferal_level = 0;
 
         if !root.exists() {
@@ -124,13 +124,13 @@ impl FSchema {
         }
 
         while stack.len() != 0 {
-            while let Some((inner_path, node)) = stack.pop_front() {
+            while let Some((inner_path, node)) = stack.pop() {
                 let path = root.join(&inner_path);
 
                 match node {
                     Node::File { data, options } => {
                         if options.defer > deferal_level{
-                            defered.push_back((inner_path, node));
+                            defered.push((inner_path, node));
                             continue;
                         }
                         
