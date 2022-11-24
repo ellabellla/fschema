@@ -1,6 +1,6 @@
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt::Display,
     fs::{self, File},
     io,
@@ -114,19 +114,23 @@ impl FSchema {
             .root
             .iter()
             .map(|(name, node)| (name.to_string(), node))
-            .collect::<Vec<(String, &Node)>>();
-        let mut backstack = vec![];
-        let mut defered = vec![];
+            .collect::<VecDeque<(String, &Node)>>();
+        let mut backstack = VecDeque::new();
+        let mut defered = VecDeque::new();
         let mut deferal_level = 0;
 
+        if !root.exists() {
+            fs::create_dir_all(&root).map_err(|e| Error::IO(e, format!("{:?}", root)))?;
+        }
+
         while stack.len() != 0 {
-            while let Some((inner_path, node)) = stack.pop() {
+            while let Some((inner_path, node)) = stack.pop_front() {
                 let path = root.join(&inner_path);
 
                 match node {
                     Node::File { data, options } => {
                         if options.defer > deferal_level{
-                            defered.push((inner_path, node));
+                            defered.push_back((inner_path, node));
                             continue;
                         }
                         
@@ -139,25 +143,22 @@ impl FSchema {
                             FileType::Copy => fs::copy(resolve_data_path(data, options.internal, &root)?, &path)
                                 .map(|_| ())
                                 .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
-                            FileType::Link => {
-                                unix::fs::symlink(resolve_data_path(data, options.internal, &root)?, &path)
-                                    .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?
-                            }
-                            FileType::Piped => fs::write(&path, &pipe(data)?).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
-                            FileType::Hex => {
-                                fs::write(&path, data.chars()
+                            FileType::Link => unix::fs::symlink(resolve_data_path(data, options.internal, &root)?, &path)
+                                    .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
+                            FileType::Piped => fs::write(&path, &pipe(data)?)
+                                .map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
+                            FileType::Hex => fs::write(&path, data.chars()
                                     .chunks(2)
                                     .into_iter()
                                     .map(|byte| u8::from_str_radix(&byte.collect::<String>(), 16).unwrap())
                                     .collect::<Vec<u8>>()
-                                ).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?
-                            },
+                                ).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
                             FileType::Bits => fs::write(&path, data.chars()
-                                .chunks(8)
-                                .into_iter()
-                                .map(|byte| u8::from_str_radix(&byte.collect::<String>(), 2).unwrap())
-                                .collect::<Vec<u8>>()
-                            ).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
+                                    .chunks(8)
+                                    .into_iter()
+                                    .map(|byte| u8::from_str_radix(&byte.collect::<String>(), 2).unwrap())
+                                    .collect::<Vec<u8>>()
+                                ).map_err(|e| Error::IO(e, format!("{}: [{}, {:?}]", inner_path, data, options.ftype)))?,
                         }
 
                         if let Some(mode) = options.mode {
